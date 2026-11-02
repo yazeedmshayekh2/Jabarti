@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class ModelConfig:
     vocab_size: int = 32_000
@@ -7,4 +8,13 @@ class ModelConfig:
     max_seq_len: int = 1024
     dropout: float = 0.1
 
-CONFIG= ModelConfig()
+    n_heads: int = 12
+
+    qkv_bias: bool = False
+
+    @property
+    def d_k(self):
+        return self.d_model // self.n_heads
+
+
+CONFIG = ModelConfig()
