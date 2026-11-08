@@ -107,3 +107,5 @@ The `K` and `V` will be cached for every head like 32 head, then 32 `KV` vectors
 4. For each new token only one k and one v will be calculated for that new token.
 
 You can find the details for the KV in the `KV Cache How It Works and How to Shrink It.pdf` in the docs folder.
+
+- Time For The First Token: is the time has been taken to generate the first token from the users's prompt.
