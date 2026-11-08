@@ -107,4 +107,4 @@ The K and V will be cached for every head like 32 head, then 32 KV vectors will 
 3. The KV cached to the VRAM of the GPU.
 4. For each new token only one k and one v will be calculated for that new token.
 
-You can find the details for the KV in the KV.pdf in the docs folder.
+You can find the details for the KV in the `KV Cache How It Works and How to Shrink It.pdf` in the docs folder.
