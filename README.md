@@ -99,8 +99,7 @@ All the attention work was done on the file called `attention.py`.
 ## Phase 5 - KV-Cache
 
 The KV-Cache is an important concept used during the **inference** not during the training or fine-tuning.
-
-The K and V will be cached for every head like 32 head, then 32 KV vectors will be cached to the VRAM. 
+The `K` and `V` will be cached for every head like 32 head, then 32 `KV` vectors will be cached to the `VRAM`. 
 
 1. The user entres the prompt.
 2. The KV matrix will be calculated as one pass for the whole matrix in parallel.
