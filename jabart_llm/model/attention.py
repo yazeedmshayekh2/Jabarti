@@ -18,32 +18,24 @@ class MultiHeadAttention(nn.Module):
 
         self.W_o = nn.Linear(config.d_model, config.d_model)
 
-        self.W_o = nn.Linear(config.max_seq_len, config.max_seq_len)
+        self.attn_dropout = nn.Dropout(config.dropout)
+        self.resid_dropout = nn.Dropout(config.dropout)
 
-        self.mask = torch.tril(
-            torch.ones(config.max_seq_len, config.max_seq_len, dtype=torch.bool),
+        self.register_buffer(
+            "mask",
+            torch.tril(
+                torch.ones(config.max_seq_len, config.max_seq_len, dtype=torch.bool),
+            ),
+            persistent=False,
         )
-
-        self.register_buffer("mask", self.mask, persistent=False)
 
     def forward(
         self,
         encoder_input: torch.Tensor,
-        kv_cache: tuple[torch.Tensor],
+        kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
         use_cache: bool = False,
     ):
         batch_size, seq_len, d_model = encoder_input.shape
-
-        past_len = 0
-        if kv_cache:
-            past_k = kv_cache[0]
-            past_v = kv_cache[1]
-
-            k = torch.cat([past_k, k], dim=2)
-            v = torch.cat([past_v, v], dim=2)
-
-        updated_cache = (k, v) if use_cache else None
-        total_length = past_len + seq_len
 
         q = (
             self.W_q(encoder_input)
@@ -63,16 +55,29 @@ class MultiHeadAttention(nn.Module):
             .transpose(1, 2)
         )
 
+        past_len = 0
+        if kv_cache:
+            past_k = kv_cache[0]
+            past_v = kv_cache[1]
+
+            k = torch.cat([past_k, k], dim=2)
+            v = torch.cat([past_v, v], dim=2)
+
+            past_len = past_k.shape[2]
+
+        updated_cache = (k, v) if use_cache else None
+        total_length = past_len + seq_len
+
         """
         .view(B, T, n_heads, d_k).transpose(1, 2) this is used for the multi-headed attention,
         the only thing is the previous d_model will be splitted into n_heads, d_k like from (1, 4, 8) -> (1, 4, 2, 4) with transpose
         it will be (1, 2, 4, 4) because the matmul multiplies the last two dims.
         """
 
-        scores = q @ k.transponse(-2, -1)
-        scores = scores / d_model**0.5
+        scores = q @ k.transpose(-2, -1)
+        scores = scores / self.d_k**0.5
 
-        causal = self.mask[past_len:seq_len, :total_length]
+        causal = self.mask[past_len:total_length, :total_length]
 
         # Causal mask slice (works with and without KV cache)
         #
@@ -101,11 +106,12 @@ class MultiHeadAttention(nn.Module):
         weights = F.softmax(
             scores, dim=-1
         )  # dim=-1 means to apply the softmax at the row level not the column level.
-
+        weights = self.attn_dropout(weights)
         out = weights @ v
 
         out = (
             out.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)
         )  # .transpose().contiguous().view() this will revert the matrix to its own shape, concatenating the heads outputs.
+        out = self.resid_dropout(self.W_o(out))
 
-        return self.W_o(out), updated_cache
+        return out, updated_cache
